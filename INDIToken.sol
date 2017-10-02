@@ -95,58 +95,52 @@ contract Indicoin is StandardToken, SafeMath {
 
     // contracts
     address public ethFundDeposit;      // deposit address for ETH for Indicoin Developers
-    address public indiFundDeposit;      // deposit address for indicoin developrs use, social vault and bounty
-    address public socialVaultNteamDeposit; // deposit address for SocialVault
+    address public indiFundAndSocialVaultDeposit;      // deposit address for indicoin developers use and social vault 
     address public bountyDeposit; // deposit address for bounty
     address public preSaleDeposit; //deposit address for preSale
     // crowdsale parameters
     bool public isFinalized;              // switched to true in operational state
-    uint256 public fundingStartBlock;
-    uint256 public fundingEndBlock;
-    uint256 public constant socialVaultNteam = 550 * (10**6) * 10**decimals; // 450m INDI reserved for social vault + 100m for indicoin team
+    uint256 public fundingStartTime;
+    uint256 public fundingEndTime;
+    uint256 public constant indiFundAndSocialVault = 550 * (10**6) * 10**decimals;   // 100m INDI reserved for team use and 450m for social vault
     uint256 public constant bounty = 50 * (10**6) * 10**decimals; // 50m INDI reserved for bounty
     uint256 public constant preSale = 20 * (10**6) * 10**decimals; // 20m INDI reserved for preSale manual distribution
     uint256 public constant tokenExchangeRate = 12500; // 12500 INDI tokens per 1 ETH
     uint256 public constant tokenCreationCap =  1000 * (10**6) * 10**decimals;
-    uint256 public constant tokenCreationMin =  632 * (10**6) * 10**decimals;
+    uint256 public constant tokenCreationMin =  620 * (10**6) * 10**decimals;
 
 
     // events
     event LogRefund(address indexed _to, uint256 _value);
     event CreateINDI(address indexed _to, uint256 _value);
     
+
     
-    // constructor
-    function Indicoin(
-        address _ethFundDeposit,
-        address _socialVaultNteamDeposit,
-        address _bountyDeposit,
-        address _preSaleDeposit,
-        uint256 _fundingStartBlock,
-        uint256 _fundingEndBlock)
+    function Indicoin()
     {
       isFinalized = false;                   //controls pre through crowdsale state
-      ethFundDeposit = _ethFundDeposit;
-      preSaleDeposit = _preSaleDeposit;
-      socialVaultNteamDeposit = _socialVaultNteamDeposit;
-      bountyDeposit = _bountyDeposit;
-      fundingStartBlock = _fundingStartBlock;
-      fundingEndBlock = _fundingEndBlock;
+      ethFundDeposit = 0xD4A92E6E8f57080e5a73D398B85c6549458a70Ea;
+      indiFundAndSocialVaultDeposit = 0xa2551Fa409bEcdacba3A3EAef30e9b3a510F401b;
+      preSaleDeposit = 0xfD9264b3Fe7361063f0a0a09BD3557b07A156f17;
+      bountyDeposit = 0xc987598c81446b8224818790fF54e4539FE5344B;
+      fundingStartTime = 1506814200;
+      fundingEndTime = 1509494400;
       
-      totalSupply = socialVaultNteam + bounty + preSale;
-      balances[socialVaultNteamDeposit] = socialVaultNteam; // Deposit Social vault Share
+      totalSupply = indiFundAndSocialVault + bounty + preSale;
+      balances[indiFundAndSocialVaultDeposit] = indiFundAndSocialVault; // Deposit Indicoin developers share
       balances[bountyDeposit] = bounty; //Deposit bounty Share
       balances[preSaleDeposit] = preSale; //Deposit preSale Share
-      CreateINDI(socialVaultNteamDeposit, socialVaultNteam); // logs socialVault fund
+      CreateINDI(indiFundAndSocialVaultDeposit, indiFundAndSocialVault);  // logs indicoin developers fund
       CreateINDI(bountyDeposit, bounty); // logs bounty fund
       CreateINDI(preSaleDeposit, preSale); // logs preSale fund
     }
     
+    
     /// @dev Accepts ether and creates new INDI tokens.
     function createTokens() payable external {
       if (isFinalized) revert();
-      if (block.number < fundingStartBlock) revert();
-      if (block.number > fundingEndBlock) revert();
+      if (now < fundingStartTime) revert();
+      if (now > fundingEndTime) revert();
       if (msg.value == 0) revert();
 
       uint256 tokens = safeMult(msg.value, tokenExchangeRate); // check that we're not over totals
@@ -159,14 +153,13 @@ contract Indicoin is StandardToken, SafeMath {
       balances[msg.sender] += tokens;  // safeAdd not needed; bad semantics to use here
       CreateINDI(msg.sender, tokens);  // logs token creation
     }
-    
-    
+
     /// @dev Ends the funding period and sends the ETH home
     function finalize() external {
       if (isFinalized) revert();
       if (msg.sender != ethFundDeposit) revert(); // locks finalize to the ultimate ETH owner
       if(totalSupply < tokenCreationMin) revert();      // have to sell minimum to move to operational
-      if(block.number <= fundingEndBlock && totalSupply != tokenCreationCap) revert();
+      if(now <= fundingEndTime && totalSupply != tokenCreationCap) revert();
       // move to operational
       isFinalized = true;
       if(!ethFundDeposit.send(this.balance)) revert();  // send the eth to Indicoin developers
@@ -175,9 +168,9 @@ contract Indicoin is StandardToken, SafeMath {
     /// @dev Allows contributors to recover their ether in the case of a failed funding campaign.
     function refund() external {
       if(isFinalized) revert();                       // prevents refund if operational
-      if (block.number <= fundingEndBlock) revert(); // prevents refund until sale period is over
+      if (now <= fundingEndTime) revert(); // prevents refund until sale period is over
       if(totalSupply >= tokenCreationMin) revert();  // no refunds if we sold enough
-      if(msg.sender == indiFundDeposit) revert();    // Indicoin developers not entitled to a refund
+      if(msg.sender == indiFundAndSocialVaultDeposit) revert();    // Indicoin developers not entitled to a refund
       uint256 indiVal = balances[msg.sender];
       if (indiVal == 0) revert();
       balances[msg.sender] = 0;
