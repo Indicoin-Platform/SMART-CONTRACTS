@@ -174,7 +174,7 @@ contract Indicoin is StandardToken {
   string public constant symbol = "INDI";
   uint256 public constant decimals = 18;
 
-  uint256 public constant INITIAL_SUPPLY = 1000000000 * 10**18;
+  uint256 public constant INITIAL_SUPPLY = 550000000 * 10**18;
 
   /**
    * @dev Contructor that gives msg.sender all of existing tokens.
